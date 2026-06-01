@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo Predictivo · Mundial 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Sora:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="kicker">Monte Carlo · Poisson + Dixon-Coles · localía · validación backtest</div>
+  <h1>Modelo<br><span class="l2">Mundial 2026</span></h1>
+  <p class="sub">Simulador del torneo completo con motor de goles calibrado, ventaja de localía para los anfitriones y corrección de correlación Dixon-Coles. Incluye un arnés de validación que mide el skill del modelo contra resultados reales del Mundial 2022.</p>
+  <div class="tri"><span class="a"></span><span class="b"></span><span class="c"></span></div>
+  <div class="tabs">
+    <button class="tab active" data-tab="prob">Probabilidades</button>
+    <button class="tab" data-tab="quin">Quiniela / Bracket</button>
+    <button class="tab" data-tab="valid">Validación</button>
+    <button class="tab" data-tab="ratings">Ajustes y fuerza</button>
+  </div>
+</div></header>
+
+<!-- PROBABILIDADES -->
+<div id="tab-prob">
+  <div class="controls"><div class="inner">
+    <div class="ctl"><label class="cl" for="nsim">Simulaciones</label>
+      <select id="nsim"><option value="2000">2,000</option><option value="10000" selected>10,000</option><option value="25000">25,000</option><option value="50000">50,000</option></select></div>
+    <button class="btn" id="run">Ejecutar modelo</button>
+    <div class="prog"><div id="progfill"></div></div><span class="pstat mono" id="pstat">listo</span>
+  </div></div>
+  <div class="wrap">
+    <section><div class="shead"><h2>Favoritos al título</h2><span class="n" id="simcount">—</span></div>
+      <div class="champbars" id="champbars"><div class="empty">Ejecuta el modelo para ver las probabilidades de campeón.</div></div></section>
+    <section><div class="shead"><h2>Probabilidades por ronda</h2><p>Toca un encabezado para reordenar</p></div>
+      <div class="tablewrap"><table id="rtable"><thead><tr>
+        <th class="team" data-k="name">Selección</th><th data-k="grp">Gr</th><th data-k="rating">Fuerza</th>
+        <th data-k="r16">Octavos</th><th data-k="qf">4tos</th><th data-k="sf">Semis</th><th data-k="fin">Final</th><th data-k="champ" class="sorted">Campeón</th>
+      </tr></thead><tbody id="rbody"><tr><td class="team">—</td><td colspan="7" style="text-align:center;color:var(--mut)">Sin datos todavía</td></tr></tbody></table></div>
+      <p class="note">"Octavos" = probabilidad de superar la fase de grupos y ganar dieciseisavos. La suma de "Campeón" es 100%.</p></section>
+  </div>
+</div>
+
+<!-- QUINIELA -->
+<div id="tab-quin" class="hidden">
+  <div class="controls"><div class="inner">
+    <div class="ctl"><label class="cl">Modo</label>
+      <div class="seg" id="qmode"><button class="on" data-m="likely">Más probable</button><button data-m="random">Escenario aleatorio</button></div></div>
+    <button class="btn" id="genq">Generar quiniela</button><button class="btn ghost" id="reroll">Otra variante</button><button class="btn ghost" id="resetOv">Reiniciar a modelo</button><span class="pstat mono" id="qstat"></span>
+  </div></div>
+  <div class="wrap">
+    <section id="qchampSec" class="hidden"><div class="brk"><div class="brkflow" style="justify-content:center"><div id="qchamp"></div></div></div></section>
+    <section id="qgroupsSec"><div class="shead"><h2>Fase de grupos</h2><p>Marcador y clasificación · <span style="color:var(--green)">verde</span> avanza · <span style="color:var(--accent)">ámbar</span> = tercero clasificado</p></div>
+      <p style="color:var(--mut);font-size:13px;margin:-6px 0 16px">En modo "Más probable" cada pick es editable: toca un partido de grupo para cambiar el resultado, o un equipo del cuadro para hacerlo avanzar. El % es la confianza del modelo en ese pick (<span style="color:var(--green)">verde</span> seguro, <span style="color:var(--accent)">ámbar</span> parejo, <span style="color:var(--red)">rojo</span> volado).</p><div class="qgrid" id="qgroups"><div class="empty">Genera la quiniela para llenar los 72 partidos de grupos.</div></div></section>
+    <section id="qkoSec" class="hidden"><div class="shead"><h2>Eliminatorias</h2><p>Cuadro completo · ganador en <span style="color:var(--win)">verde</span> · "pen" = penales</p></div>
+      <div class="brk"><div class="brkflow" id="qbracket"></div></div><div id="qthird" style="margin-top:14px"></div></section>
+  </div>
+</div>
+
+<!-- VALIDACION -->
+<div id="tab-valid" class="hidden"><div class="wrap">
+  <section>
+    <div class="shead"><h2>Validación del modelo</h2><span class="n">backtest fuera de muestra</span></div>
+    <p style="color:var(--mut);font-size:14px;max-width:760px">El modelo se aplica a los <b style="color:var(--txt)">48 partidos de la fase de grupos del Mundial 2022</b> usando únicamente fuerzas pre-torneo (sin mirar el resultado). Sus probabilidades por partido se puntúan con métricas estándar de pronóstico. Es la única forma honesta de saber si el modelo tiene skill real o solo parece razonable.</p>
+    <div style="margin:18px 0 6px">
+      <span class="pill">Muestra <b>48 partidos</b></span>
+      <span class="pill">Métrica principal <b>RPS</b></span>
+      <span class="pill">Localía actual <b id="vhfa">+50</b></span>
+      <span class="pill">Dixon-Coles ρ <b id="vrho">−0.13</b></span>
+    </div>
+    <div class="vtable"><table>
+      <thead><tr><th class="lab" style="text-align:left">Configuración</th><th>RPS ↓</th><th>Brier ↓</th><th>LogLoss ↓</th><th>Aciertos ↑</th></tr></thead>
+      <tbody id="vbody"></tbody>
+    </table></div>
+    <p class="note">↓ menor es mejor · ↑ mayor es mejor. RPS (Ranked Probability Score) es la métrica de referencia para fútbol porque premia acertar el resultado y castiga menos los errores "cercanos". "Aciertos" = % de partidos donde el resultado más probable del modelo coincidió con el real.</p>
+    <div class="vbox warn" id="vread"></div>
+    <div class="vbox">
+      <b>Alcance y límites de esta prueba.</b> La muestra es una sola fase de grupos (48 partidos) y, además, la de 2022 fue históricamente <b>atípica en sorpresas</b> (Arabia 2-1 Argentina, Japón sobre Alemania y España, Marruecos primero de grupo, Camerún sobre Brasil). Eso aplana el skill aparente de cualquier modelo basado en fuerza. Las eliminatorias se excluyen a propósito: la prórroga y los penales contaminan el marcador a 90 minutos que el motor predice. El arnés es el <b>marco</b>; para una conclusión robusta habría que correrlo sobre varios torneos. Lo importante no es el número absoluto sino el método: ahora cada cambio futuro al modelo se puede medir con un delta, no defender con intuición.
+    </div>
+  </section>
+</div></div>
+
+<!-- AJUSTES Y FUERZA -->
+<div id="tab-ratings" class="hidden"><div class="wrap">
+  <section>
+    <div class="shead"><h2>Ajustes del motor</h2><p>Afectan a todas las pestañas — vuelve a ejecutar</p></div>
+    <div class="grpgrid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
+      <div class="gcard"><h3>Localía</h3>
+        <div class="rrow"><span>Bono anfitrión (Elo)</span><input type="number" id="setHfa" value="50" min="0" max="150" step="5"></div>
+        <p class="note" style="margin-top:8px">México, EE.UU. y Canadá reciben este bono cuando no juegan entre sí. ~50 Elo ≈ +0.3 gol esperado. Pon 0 para desactivarlo.</p></div>
+      <div class="gcard"><h3>Dixon-Coles</h3>
+        <div class="rrow"><span>Activar</span><div class="seg" id="setDc"><button class="on" data-v="1">Sí</button><button data-v="0">No</button></div></div>
+        <div class="rrow"><span>Correlación ρ</span><input type="number" id="setRho" value="-0.13" min="-0.3" max="0.1" step="0.01"></div>
+        <p class="note" style="margin-top:8px">Corrige el exceso de empates de bajo marcador que el Poisson simple subestima. ρ negativo sube 0-0 y 1-1.</p></div>
+    </div>
+  </section>
+  <section>
+    <div class="shead"><h2>Fuerza de las 48 selecciones</h2><p>Editable</p></div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"><button class="btn" id="loadElo">Cargar Elo oficial (eloratings.net · jun 2026)</button><button class="btn ghost" id="resetRatings">Restaurar mis valores base</button><span class="pstat mono" id="eloStat" style="align-self:center"></span></div>
+    <div class="grpgrid" id="grpgrid"></div>
+    <p class="note">Escala tipo Elo (~1500–2100); ~170 puntos ≈ +1 gol esperado. <span class="hostdot">HOST</span> = anfitrión. <span class="verdot">VER</span> = valor tomado directamente de la tabla en vivo de eloratings.net (las 48 selecciones, sin estimaciones). El botón <b>Cargar Elo oficial</b> reemplaza las 48 fuerzas por ese set; <b>Restaurar mis valores base</b> vuelve a los originales. Ajusta cualquiera con tu criterio y vuelve a ejecutar.</p>
+  </section>
+</div></div>
+
+<div class="wrap"><div class="foot">
+  <strong style="color:var(--txt)">Notas metodológicas.</strong>
+  Estructura del torneo (grupos, calendario, repechaje de terceros y cuadro) del <em>World Soccer — World Cup 2026 Special</em>. Goles con modelo Poisson: λ = 1.33 ± (dif. de fuerza)/170, acotado, con <strong style="color:var(--txt)">corrección Dixon-Coles</strong> (ajuste de correlación en marcadores bajos) y <strong style="color:var(--txt)">ventaja de localía</strong> para los anfitriones. La pestaña <strong style="color:var(--txt)">Validación</strong> mide el skill contra los 48 partidos de grupos del Mundial 2022 (RPS, Brier, log-loss, aciertos) usando fuerzas pre-torneo. Datos de resultados 2022 verificados; las fuerzas pre-torneo son estimaciones tipo Elo (eloratings.net, nov. 2022). Un modelo es un marco de escenarios, no una certeza.
+</div></div>
+
+<!-- Módulos en orden de dependencia: datos -> motor -> features -> UI -->
+<script src="src/data.js"></script>
+<script src="src/engine.js"></script>
+<script src="src/quiniela.js"></script>
+<script src="src/validation.js"></script>
+<script src="src/ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Datos crudos descargados (se regeneran con scripts/)
+data/*.tsv
+data/*.csv
+data/*.json
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Temporales
+*.tmp
+*.log
