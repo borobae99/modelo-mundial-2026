@@ -4,7 +4,7 @@ Memoria de trabajo para retomar rápido. Resume QUÉ se hizo, QUÉ se descubrió
 y CÓMO seguir. Complementa a `CLAUDE.md` (que es la referencia técnica permanente). Última
 actualización: **9 jun 2026**.
 
-> Para verificar que todo sigue funcionando: `node scripts/smoke_test.js` (deben pasar 75 checks).
+> Para verificar que todo sigue funcionando: `node scripts/smoke_test.js` (deben pasar 77 checks).
 > Para ver la app: abrir `index.html` en el navegador.
 
 ---
@@ -221,7 +221,12 @@ Dos formas de buscar profit con un monto específico, con la matemática enfrent
   Jordania — el mismo error del modelo apostado tres veces, con un MC "independiente" que
   mentía. Tras el fix: 7 picks diversificados, $239 en juego de $1,000, EV +$37, P(abajo) 33%.
 - Retos y planes se guardan y viajan en el MISMO export/import JSON de la pestaña Parleys.
-- Smoke test: 66 -> 75 checks.
+- **Fix de cronología (feedback de Jorge, 9 jun)**: `parlay_odds.js` ahora guarda el kick con
+  HORA real (UTC), no solo el día. La escalera encadena por inicio real (>=3h entre escalones,
+  permite dos el mismo día si los horarios alcanzan) y el plan Kelly se lista en orden
+  cronológico — nunca un partido posterior antes que uno anterior. La UI muestra fecha y hora
+  en la zona horaria del que mira (fmtKick).
+- Smoke test: 66 -> 77 checks.
 
 ---
 

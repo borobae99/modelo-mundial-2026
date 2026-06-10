@@ -146,8 +146,10 @@ bank -> backtest_data -> backtest_ad -> xg_data -> backtest -> ui (último, arra
   memoria de sesión + export/import JSON (sin localStorage); se puntúan contra `RESULTS_2026`
   (goleadores contra `RESULTS_2026_SCORERS`; 0-0 = fallo, goles sin lista aún = pendiente).
 - **Banca / Reto (bank.js)**: dos formas de buscar profit con un monto específico, con la
-  matemática enfrente. **Reto escalera**: la banca completa rueda escalón a escalón (fechas
-  estrictamente crecientes — hay que cobrar antes del siguiente; perfiles por banda de cuota
+  matemática enfrente. **Reto escalera**: la banca completa rueda escalón a escalón encadenada
+  por el HORARIO REAL de inicio (kick con hora UTC en parlay_odds.js): el siguiente escalón
+  empieza >=3h después del anterior — hay que cobrar antes de reapostar; permite dos escalones
+  el mismo día si los horarios alcanzan (perfiles por banda de cuota
   mediana: conservador 1.15-1.45, medio 1.4-1.9, agresivo 1.8-3.0; dentro de banda elige por
   valor; sin goleadores — toda la banca a una alineación no). Matemática exacta: banca final =
   B0·Πcuotas, prob = Πpe, y columna "EV si paras aquí" (= pCum·banca − B0) con la mejor parada
@@ -334,8 +336,9 @@ gana/pierde/empate por cobertura, goleadores con nombres robustos a acentos y 0-
 boleto vivo->perdido/ganado, export/import JSON, filtros de jornada y mercado respetados,
 variantes sin repetir partidos con reinicio de ciclo), y la banca (escalera con fechas
 crecientes/banda/matemática exacta/estados vivo-roto-completado, Kelly con topes y fórmula
-verificada, Monte Carlo con percentiles ordenados, export/import con retos y planes). Son 75
-checks; si algo se rompe al refactorizar, falla ahí. Nota: los archivos generados (`backtest_data.js`,
+verificada, Monte Carlo con percentiles ordenados, export/import con retos y planes,
+encadenamiento por inicio real y plan cronológico). Son 77 checks; si algo se rompe al
+refactorizar, falla ahí. Nota: los archivos generados (`backtest_data.js`,
 `attack_defense.js`, `backtest_ad.js`, `xg_data.js`, `odds_2026.js`, `parlay_odds.js`,
 `scorers_2026.js`, `player_odds_2026.js`, `results_2026.js`) deben existir — regenerarlos con
 sus scripts si faltan (build_backtest.py, build_attack_defense.py, build_xg.py,

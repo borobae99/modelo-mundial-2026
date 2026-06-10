@@ -64,7 +64,9 @@ def main():
             med = median(p for p, _ in lst)
             px[oc] = [round(best[0], 2), round(med, 2), best[1]]
         key = "|".join(sorted([hs, as_]))
-        out[key] = {"kick": (ev.get("commence_time") or "")[:10], "px": px}
+        # commence_time COMPLETO (con hora, UTC): el reto escalera necesita el horario real
+        # para encadenar apuestas (cobrar antes del siguiente escalon), no solo el dia
+        out[key] = {"kick": ev.get("commence_time") or "", "px": px}
 
     if miss:
         sys.stderr.write("ADVERTENCIA: nombres sin mapear: %s\n" % ", ".join(sorted(miss)))

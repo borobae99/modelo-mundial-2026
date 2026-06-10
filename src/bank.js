@@ -43,21 +43,26 @@ const LADDER_BANDS={conservador:[1.15,1.45],medio:[1.4,1.9],agresivo:[1.8,3.0]};
 // candidatos: 1X2 y doble oportunidad (goleadores NO: toda la banca a una alineacion, no)
 function ladderCandidates(){return parlayPool(false).filter(l=>l.mkt!=='scorer');}
 
-// Arma la escalera: por cada fecha (ascendente) el mejor candidato POR VALOR dentro de la
-// banda del perfil; un partido por escalon y fechas estrictamente crecientes.
+// Arma la escalera con los HORARIOS REALES de inicio (kick trae fecha y hora UTC): el
+// siguiente escalon debe empezar al menos LADDER_GAP despues del anterior — hay que cobrar
+// el escalon antes de apostar el siguiente (un partido dura ~2h). Eso ordena los escalones
+// por inicio real (nunca un partido posterior antes que uno anterior) y permite dos
+// escalones el mismo dia si los horarios alcanzan. Entre los elegibles del dia mas proximo
+// se toma el mejor POR VALOR dentro de la banda del perfil; un partido por escalon.
+const LADDER_GAP_MS=3*3600*1000;
 function buildLadder(steps,profile,exclude){
   const[lo,hi]=LADDER_BANDS[profile]||LADDER_BANDS.medio;
-  const byDate={};
-  ladderCandidates().forEach(l=>{
-    if(l.med<lo||l.med>hi)return;
-    if(exclude&&exclude.has(l.key))return;
-    (byDate[l.kick]=byDate[l.kick]||[]).push(l);
-  });
-  const rungs=[];
-  for(const d of Object.keys(byDate).sort()){
-    if(rungs.length>=steps)break;
-    const cands=byDate[d].filter(l=>!rungs.some(r=>r.key===l.key)).sort((x,y)=>legVal(y)-legVal(x));
-    if(cands.length)rungs.push(cands[0]);
+  const cands=ladderCandidates()
+    .filter(l=>l.med>=lo&&l.med<=hi&&(!exclude||!exclude.has(l.key)))
+    .sort((x,y)=>x.kick<y.kick?-1:x.kick>y.kick?1:0);
+  const rungs=[];let cur=-Infinity;
+  while(rungs.length<steps){
+    const elig=cands.filter(l=>!rungs.some(r=>r.key===l.key)&&new Date(l.kick).getTime()>=cur+LADDER_GAP_MS);
+    if(!elig.length)break;
+    const day0=elig[0].kick.slice(0,10); // el dia disponible mas proximo
+    const best=elig.filter(l=>l.kick.slice(0,10)===day0).sort((x,y)=>legVal(y)-legVal(x))[0];
+    rungs.push(best);
+    cur=new Date(best.kick).getTime();
   }
   return rungs;
 }
@@ -130,6 +135,9 @@ function kellyPlan(bank,frac,maxPicks){
     const stake=Math.min(bank*f*frac,bank*KELLY_CAP);
     return{leg:l,pe,o,f,stake,ev:stake*(pe*o-1)};
   }).filter(r=>r.stake>=1);
+  // orden CRONOLOGICO (inicio real): el plan es una lista de apuestas para ir colocando —
+  // primero los partidos que empiezan primero, no los de mas valor
+  rows.sort((x,y)=>x.leg.kick<y.leg.kick?-1:x.leg.kick>y.leg.kick?1:0);
   return{rows,evAbs:rows.reduce((s,r)=>s+r.ev,0),exposure:rows.reduce((s,r)=>s+r.stake,0),
          mc:rows.length?planMC(rows,5000):null};
 }
@@ -183,7 +191,7 @@ function renderLadderCur(){
   rungs.forEach((r,i)=>{
     const s=st.rows[i],pe=legPe(r);
     rows+=`<tr${i===st.bestStop?' style="box-shadow:inset 3px 0 0 var(--green)"':''}><td class="mono" style="color:var(--mut)">${i+1}</td>`+
-      `<td class="mono">${r.kick.slice(5)}<span class="plk">J${r.md}</span></td>`+
+      `<td class="mono">${fmtKick(r.kick)}<span class="plk">J${r.md}</span></td>`+
       `<td class="team">${tag(r.g)}${r.a} – ${r.b}</td>`+
       pickCellHtml(r)+
       `<td class="mono">${r.best.toFixed(2)}<span class="plk">${r.book}</span></td>`+
@@ -214,7 +222,7 @@ function renderLadders(){
     const cls=st.state==='completado'?'hi':st.state==='roto'?'lo':'mid';
     let rows='';
     ld.rungs.forEach((r,i)=>{
-      rows+=`<div class="ptleg"><span class="n">${i+1}. ${r.a} – ${r.b}<span class="plk mono">${r.kick.slice(5)}</span></span><span class="p">${r.lbl} <span class="mono" style="color:var(--mut)">@${r.best.toFixed(2)}</span></span>${legChip(legResult(r))}</div>`;
+      rows+=`<div class="ptleg"><span class="n">${i+1}. ${r.a} – ${r.b}<span class="plk mono">${fmtKick(r.kick)}</span></span><span class="p">${r.lbl} <span class="mono" style="color:var(--mut)">@${r.best.toFixed(2)}</span></span>${legChip(legResult(r))}</div>`;
     });
     const card=document.createElement('div');card.className='ptk';
     card.innerHTML=`<div class="phd"><b>Reto #${ld.id}</b><span class="mono" style="color:var(--mut)">${ld.rungs.length} escalones · ${pf$c(ld.b0)} → ${pf$c(ld.final)} · prob. ${pfPct(ld.pAll)}</span><span class="cf ${cls}">${st.state.toUpperCase()}</span><span class="mono" style="color:var(--mut)">banca ${pf$c(st.bank)}${st.state==='vivo'?' · va en el escalon '+st.step:''}</span><button class="pdel" data-lid="${ld.id}" title="Borrar reto">x</button></div><div class="ptlegs">${rows}</div>`;
@@ -234,7 +242,7 @@ function renderPlanCur(){
   p.rows.forEach((r,i)=>{
     const l=r.leg;
     rows+=`<tr><td class="mono" style="color:var(--mut)">${i+1}</td>`+
-      `<td class="team">${tag(l.g)}${l.a} – ${l.b}<span class="plk mono">J${l.md} · ${l.kick.slice(5)}</span></td>`+
+      `<td class="team">${tag(l.g)}${l.a} – ${l.b}<span class="plk mono">J${l.md} · ${fmtKick(l.kick)}</span></td>`+
       pickCellHtml(l)+
       `<td class="mono">${r.o.toFixed(2)}<span class="plk">${l.book}</span></td>`+
       `<td class="mono"><span class="cf ${confClass(r.pe)}">${pfPct(r.pe)}</span></td>`+

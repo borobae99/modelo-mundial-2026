@@ -220,6 +220,8 @@ function importParlayTickets(json){
 
 /* ===== render (DOM) ===== */
 function pf$(v){return '$'+Math.round(v).toLocaleString('es');}
+// kick ISO (UTC) -> "dd/mm hh:mm" en la zona horaria del navegador del que mira.
+function fmtKick(k){const d=new Date(k);if(isNaN(d))return String(k).slice(5,16);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes());}
 function pfPct(p){const x=p*100;return (x>=10?x.toFixed(0):x>=1?x.toFixed(1):x.toFixed(2))+'%';}
 function pfOdds(o){return o>=1000?Math.round(o).toLocaleString('es'):o>=100?o.toFixed(0):o.toFixed(2);}
 function legChip(s){
@@ -248,7 +250,7 @@ function renderParlayTicket(){
   legs.forEach((l,i)=>{
     const pe=legPe(l),v=legVal(l);
     rows+=`<tr><td class="mono" style="color:var(--mut)">${i+1}</td>`+
-      `<td class="team">${tag(l.g)}${l.a} – ${l.b}<span class="plk mono">J${l.md} · ${l.kick.slice(5)}</span></td>`+
+      `<td class="team">${tag(l.g)}${l.a} – ${l.b}<span class="plk mono">J${l.md} · ${fmtKick(l.kick)}</span></td>`+
       pickCellHtml(l)+
       `<td class="mono">${l.best.toFixed(2)}<span class="plk">${l.book}</span></td>`+
       `<td class="mono"><span class="cf ${confClass(pe)}">${pfPct(pe)}</span></td>`+
@@ -281,7 +283,7 @@ function renderParlayPool(){
   _poolView.forEach((l,i)=>{
     const pe=legPe(l),v=legVal(l);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="team">${tag(l.g)}${l.a} – ${l.b}<span class="plk mono">J${l.md} · ${l.kick.slice(5)}</span></td>`+
+    tr.innerHTML=`<td class="team">${tag(l.g)}${l.a} – ${l.b}<span class="plk mono">J${l.md} · ${fmtKick(l.kick)}</span></td>`+
       pickCellHtml(l)+
       `<td class="mono">${l.best.toFixed(2)}<span class="plk">${l.book}</span></td>`+
       `<td class="mono">${l.med.toFixed(2)}</td>`+

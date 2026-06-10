@@ -244,11 +244,13 @@ combined += `
   __results.mktFilterScorer=__results.playerOddsMatches===0||(tSc.legs.length===3&&tSc.legs.every(l=>l.mkt==='scorer'));
   // 15) banca: reto escalera
   const lad=buildLadder(6,'medio',null);
+  const GAP=3*3600*1000;
   __results.ladBuild=lad.length===6
-    &&lad.every((r,i)=>i===0||lad[i-1].kick<r.kick)          // fechas estrictamente crecientes
+    &&lad.every((r,i)=>i===0||new Date(r.kick)-new Date(lad[i-1].kick)>=GAP) // inicio real: cobrar antes del siguiente
     &&lad.every(r=>r.med>=1.4&&r.med<=1.9)                   // banda del perfil
     &&lad.every(r=>r.mkt!=='scorer')                         // sin goleadores
     &&new Set(lad.map(r=>r.key)).size===6;                   // partidos unicos
+  __results.ladKickHasTime=lad.every(r=>r.kick.length>10&&!isNaN(new Date(r.kick))); // hora real, no solo dia
   const lst=ladderStats(lad,100);
   const combL=lad.reduce((s,r)=>s*r.best,1),pAllL=lad.reduce((s,r)=>s*legPe(r),1);
   __results.ladMath=Math.abs(lst.final-100*combL)<1e-6&&Math.abs(lst.pAll-pAllL)<1e-12
@@ -282,6 +284,7 @@ combined += `
     &&new Set(kTeams).size===kTeams.length;                         // una apuesta por seleccion
   const r0=plan.rows[0];
   __results.kFormula=Math.abs(r0.stake-Math.min(1000*0.25*Math.max(0,(r0.pe*r0.o-1)/(r0.o-1)),50))<1e-6;
+  __results.kChrono=plan.rows.every((r,i)=>i===0||plan.rows[i-1].leg.kick<=r.leg.kick); // primero lo que empieza primero
   __results.kEv=plan.evAbs>0&&Math.abs(plan.evAbs-plan.rows.reduce((s,r)=>s+r.stake*(r.pe*r.o-1),0))<1e-9;
   __results.kMc=plan.mc&&plan.mc.p5<=plan.mc.p50&&plan.mc.p50<=plan.mc.p95&&plan.mc.pNeg>=0&&plan.mc.pNeg<=1;
   // export/import incluye retos y planes
@@ -365,12 +368,14 @@ check("Goleadores: prob. modelo y mercado en (0,1)", r.scorerProbsSane);
 check("Goleadores: nombres robustos a acentos y orden", r.nameKeyOk);
 check("Goleadores: puntuacion (0-0 falla, sin lista pende, anota gana)", r.scorer00 && r.scorerPendSinLista && r.scorerWin && r.scorerLoss);
 check("Parleys: filtro de mercado en el armador (dc y goleadores)", r.mktFilterDc && r.mktFilterScorer);
-check("Escalera: fechas crecientes, banda del perfil, sin goleadores", r.ladBuild);
+check("Escalera: encadenada por inicio real (>=3h entre escalones)", r.ladBuild);
+check("Escalera: kicks traen hora real (no solo dia)", r.ladKickHasTime);
 check("Escalera: matematica exacta (banca, prob. acumulada, EV, parada)", r.ladMath);
 check("Escalera: variantes sin repetir partidos", r.ladVariants);
 check("Escalera: estado vivo -> roto / completado con banca correcta", r.ladVivo && r.ladRoto && r.ladCompleto);
 check("Kelly: stakes con tope 5%, edge minimo, partidos unicos", r.kBuild);
 check("Kelly: formula f* = (p*o-1)/(o-1) con fraccion", r.kFormula);
+check("Kelly: plan en orden cronologico (inicio real)", r.kChrono);
 check("Kelly: EV positivo y consistente con los stakes", r.kEv);
 check("Kelly: Monte Carlo con percentiles ordenados", r.kMc);
 check("Banca: export/import JSON incluye retos y planes", r.bankRoundtrip);
