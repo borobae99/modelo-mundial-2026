@@ -1,7 +1,15 @@
+# Secretos (claves de API, etc.) — NUNCA commitear
+env.txt
+.env
+.env.*
+*.key
+
 # Datos crudos descargados (se regeneran con scripts/)
 data/*.tsv
 data/*.csv
 data/*.json
+# excepcion: el acumulador de marcadores NO se puede regenerar (la API solo mira 3 dias atras)
+!data/scores_2026.json
 
 # Node
 node_modules/

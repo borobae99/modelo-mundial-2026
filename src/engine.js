@@ -15,6 +15,8 @@
 // ----- Estado mutable del modelo (editable desde la UI) -----
 let ratings={...DEFAULT_RATINGS};
 let HFA=50, DC_ON=true, RHO=-0.13;
+let AD_ON=false; // modo ataque/defensa: usa AD_RATINGS (attack_defense.js) en vez del Elo
+let RATING_SD=0; // incertidumbre de fuerza (±Elo) para las bandas de confianza; 0 = sin bandas
 
 const ALL_TEAMS=Object.keys(DEFAULT_RATINGS);
 const teamGroup={};for(const g in GROUPS)GROUPS[g].forEach(t=>teamGroup[t]=g);
@@ -23,7 +25,17 @@ const teamGroup={};for(const g in GROUPS)GROUPS[g].forEach(t=>teamGroup[t]=g);
 const BASE=1.33,DIV=170,MAXG=8;
 function clampL(x){return Math.min(6,Math.max(0.12,x));}
 function effR(team,opp){let r=ratings[team];if(HFA>0&&HOSTS.has(team)&&!HOSTS.has(opp))r+=HFA;return r;}
-function lambdas(a,b){const sup=(effR(a,b)-effR(b,a))/DIV;return[clampL(BASE+sup/2),clampL(BASE-sup/2)];}
+function lambdasElo(a,b){const sup=(effR(a,b)-effR(b,a))/DIV;return[clampL(BASE+sup/2),clampL(BASE-sup/2)];}
+// Modo ataque/defensa: lambda = gamma * (localia si anfitrion no-neutral) * ataque * defensa_rival.
+// DEF alto del rival = encaja mas. Cae al Elo si falta algun equipo en AD_RATINGS.
+function lambdasAD(a,b){
+  const R=(typeof AD_RATINGS!=='undefined')?AD_RATINGS:null;const ra=R&&R[a],rb=R&&R[b];
+  if(!ra||!rb)return lambdasElo(a,b);
+  let la=AD_GAMMA*ra.atk*rb.def,lb=AD_GAMMA*rb.atk*ra.def;
+  if(HFA>0){if(HOSTS.has(a)&&!HOSTS.has(b))la*=AD_HADV;else if(HOSTS.has(b)&&!HOSTS.has(a))lb*=AD_HADV;}
+  return[clampL(la),clampL(lb)];
+}
+function lambdas(a,b){return AD_ON?lambdasAD(a,b):lambdasElo(a,b);}
 function poisson(l){let L=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
 function poissonPmf(k,l){let p=Math.exp(-l);for(let i=1;i<=k;i++)p*=l/i;return p;}
 function tauDC(x,y,la,lb,rho){if(x===0&&y===0)return 1-la*lb*rho;if(x===0&&y===1)return 1+la*rho;if(x===1&&y===0)return 1+lb*rho;if(x===1&&y===1)return 1-rho;return 1;}
@@ -37,4 +49,26 @@ function simulateGroup(teams){const st={};teams.forEach(t=>st[t]={p:0,gf:0,ga:0}
 function assignThirds(thirds){const res=new Array(8).fill(null),used=new Array(thirds.length).fill(false);function bt(s){if(s===8)return true;for(let i=0;i<thirds.length;i++){if(used[i])continue;if(THIRD_SLOTS[s].allowed.includes(thirds[i].grp)){used[i]=true;res[s]=thirds[i].team;if(bt(s+1))return true;used[i]=false;res[s]=null;}}return false;}bt(0);return res;}
 function runOne(stat){const W={},R={},thirdsAll=[];for(const g in GROUPS){const{ranked,st}=simulateGroup(GROUPS[g]);W[g]=ranked[0];R[g]=ranked[1];const t=ranked[2];thirdsAll.push({team:t,grp:g,p:st[t].p,gd:st[t].gf-st[t].ga,gf:st[t].gf});}thirdsAll.sort((a,b)=>{if(b.p!==a.p)return b.p-a.p;if(b.gd!==a.gd)return b.gd-a.gd;if(b.gf!==a.gf)return b.gf-a.gf;return Math.random()-0.5;});const q=thirdsAll.slice(0,8);const ts=assignThirds(q);const usedSet=new Set(ts.filter(Boolean));let idx=0;for(let s=0;s<8;s++){if(!ts[s]){while(idx<q.length&&usedSet.has(q[idx].team))idx++;if(idx<q.length){ts[s]=q[idx].team;usedSet.add(q[idx].team);}}}const adv=new Set();for(const g in GROUPS){adv.add(W[g]);adv.add(R[g]);}q.forEach(t=>adv.add(t.team));adv.forEach(t=>stat[t].adv++);const ro32=RO32();const rs=s=>{const[t,k]=s;return t==="W"?W[k]:t==="R"?R[k]:ts[k];};const ro32w=[];for(let i=0;i<16;i++){const w=knockout(rs(ro32[i][0]),rs(ro32[i][1]));ro32w.push(w);stat[w].r16++;}const ro16w=RO16.map(([x,y])=>{const w=knockout(ro32w[x],ro32w[y]);stat[w].qf++;return w;});const qfw=QF.map(([x,y])=>{const w=knockout(ro16w[x],ro16w[y]);stat[w].sf++;return w;});const sfw=SF.map(([x,y])=>{const w=knockout(qfw[x],qfw[y]);stat[w].fin++;return w;});const champ=knockout(sfw[0],sfw[1]);stat[champ].champ++;}
 let running=false;
-function runModel(){if(running)return;running=true;const N=parseInt(document.getElementById('nsim').value);const stat={};ALL_TEAMS.forEach(t=>stat[t]={adv:0,r16:0,qf:0,sf:0,fin:0,champ:0});const btn=document.getElementById('run');btn.disabled=true;const fill=document.getElementById('progfill'),ps=document.getElementById('pstat');let done=0;const batch=Math.max(200,Math.floor(N/40));function step(){const end=Math.min(done+batch,N);for(;done<end;done++)runOne(stat);const pc=done/N;fill.style.width=(pc*100).toFixed(1)+'%';ps.textContent=Math.round(pc*100)+'%';if(done<N)setTimeout(step,0);else{render(stat,N);btn.disabled=false;running=false;ps.textContent='listo';}}step();}
+
+/* ===== Bandas de confianza (roadmap 5) =====
+   Monte Carlo de dos niveles: cada "sorteo" perturba las fuerzas con ruido gaussiano
+   (±RATING_SD Elo) y corre un torneo completo Ninner veces; la dispersión de la prob. de
+   campeón entre sorteos es la banda (IC 90%). Refleja que las fuerzas son estimaciones, no
+   certezas. Se expresa en espacio Elo (modo validado por defecto), así que fuerza Elo durante
+   el cálculo aunque AD_ON esté activo. */
+function gaussRand(){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function runBands(B,Ninner,sd){
+  const saveAD=AD_ON,saveRatings=ratings;AD_ON=false;
+  const draws={};ALL_TEAMS.forEach(t=>draws[t]=[]);
+  for(let b=0;b<B;b++){
+    const pert={};ALL_TEAMS.forEach(t=>pert[t]=saveRatings[t]+gaussRand()*sd);ratings=pert;
+    const stat={};ALL_TEAMS.forEach(t=>stat[t]={adv:0,r16:0,qf:0,sf:0,fin:0,champ:0});
+    for(let i=0;i<Ninner;i++)runOne(stat);
+    ALL_TEAMS.forEach(t=>draws[t].push(stat[t].champ/Ninner));
+  }
+  ratings=saveRatings;AD_ON=saveAD;
+  const out={};ALL_TEAMS.forEach(t=>{const a=draws[t].sort((x,y)=>x-y);const pct=p=>{const idx=p*(a.length-1),lo=Math.floor(idx),hi=Math.ceil(idx);return a[lo]+(a[hi]-a[lo])*(idx-lo);};out[t]={lo:pct(0.05),hi:pct(0.95),mean:a.reduce((s,c)=>s+c,0)/a.length};});
+  return out;
+}
+
+function runModel(){if(running)return;running=true;const N=parseInt(document.getElementById('nsim').value);const stat={};ALL_TEAMS.forEach(t=>stat[t]={adv:0,r16:0,qf:0,sf:0,fin:0,champ:0});const btn=document.getElementById('run');btn.disabled=true;const fill=document.getElementById('progfill'),ps=document.getElementById('pstat');let done=0;const batch=Math.max(200,Math.floor(N/40));function step(){const end=Math.min(done+batch,N);for(;done<end;done++)runOne(stat);const pc=done/N;fill.style.width=(pc*100).toFixed(1)+'%';ps.textContent=Math.round(pc*100)+'%';if(done<N)setTimeout(step,0);else{render(stat,N);if(RATING_SD>0){ps.textContent='bandas…';setTimeout(()=>{const bands=runBands(30,Math.min(2000,N),RATING_SD);if(typeof renderBands==='function')renderBands(bands);btn.disabled=false;running=false;ps.textContent='listo';},20);}else{btn.disabled=false;running=false;ps.textContent='listo';}}}step();}

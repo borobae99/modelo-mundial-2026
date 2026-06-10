@@ -19,6 +19,8 @@
   <div class="tabs">
     <button class="tab active" data-tab="prob">Probabilidades</button>
     <button class="tab" data-tab="quin">Quiniela / Bracket</button>
+    <button class="tab" data-tab="parlay">Parleys</button>
+    <button class="tab" data-tab="bank">Banca / Reto</button>
     <button class="tab" data-tab="valid">Validación</button>
     <button class="tab" data-tab="ratings">Ajustes y fuerza</button>
   </div>
@@ -41,6 +43,12 @@
         <th data-k="r16">Octavos</th><th data-k="qf">4tos</th><th data-k="sf">Semis</th><th data-k="fin">Final</th><th data-k="champ" class="sorted">Campeón</th>
       </tr></thead><tbody id="rbody"><tr><td class="team">—</td><td colspan="7" style="text-align:center;color:var(--mut)">Sin datos todavía</td></tr></tbody></table></div>
       <p class="note">"Octavos" = probabilidad de superar la fase de grupos y ganar dieciseisavos. La suma de "Campeón" es 100%.</p></section>
+    <section><div class="shead"><h2>Modelo vs Mercado · Campeón</h2><span class="n" id="mktbook">—</span></div>
+      <p style="color:var(--mut);font-size:14px;max-width:820px">Probabilidad de campeón del <b style="color:var(--txt)">modelo</b> (Monte Carlo), de la <b style="color:var(--txt)">probabilidad implícita del mercado</b> (cuotas de campeón sin margen) y del <b style="color:var(--txt)">ensamble</b> (mezcla ponderada de ambos, la mejor estimación de producción). La tabla se ordena por el ensamble. La columna <b style="color:var(--txt)">Dif.</b> = modelo − mercado en puntos: positivo (verde) = el modelo es más optimista que el mercado; negativo (rojo) = el mercado lo valora más. Ahí es donde tu quiniela puede apartarse de la línea con criterio. El peso del ensamble se ajusta en <b style="color:var(--txt)">Ajustes</b>. <span class="pill" style="margin-left:6px">Margen outright <b id="mktvig">—</b></span></p>
+      <div class="tablewrap"><table id="mkttable"><thead><tr>
+        <th class="team">Selección</th><th>Modelo</th><th>Mercado</th><th>Ensamble</th><th>Dif.</th>
+      </tr></thead><tbody id="mktbody"><tr><td class="team">—</td><td colspan="4" style="text-align:center;color:var(--mut)">Ejecuta el modelo para comparar con el mercado</td></tr></tbody></table></div>
+      <p class="note">Las cuotas de campeón cargan una "cola de tapados" (48 selecciones), por eso su margen es alto; el de-vig lo reparte proporcionalmente. Comparación descriptiva: 2026 aún no se juega, así que mide divergencia, no acierto. El peso del ensamble se calibra contra 2022 (pestaña Validación).</p></section>
   </div>
 </div>
 
@@ -57,6 +65,81 @@
       <p style="color:var(--mut);font-size:13px;margin:-6px 0 16px">En modo "Más probable" cada pick es editable: toca un partido de grupo para cambiar el resultado, o un equipo del cuadro para hacerlo avanzar. El % es la confianza del modelo en ese pick (<span style="color:var(--green)">verde</span> seguro, <span style="color:var(--accent)">ámbar</span> parejo, <span style="color:var(--red)">rojo</span> volado).</p><div class="qgrid" id="qgroups"><div class="empty">Genera la quiniela para llenar los 72 partidos de grupos.</div></div></section>
     <section id="qkoSec" class="hidden"><div class="shead"><h2>Eliminatorias</h2><p>Cuadro completo · ganador en <span style="color:var(--win)">verde</span> · "pen" = penales</p></div>
       <div class="brk"><div class="brkflow" id="qbracket"></div></div><div id="qthird" style="margin-top:14px"></div></section>
+  </div>
+</div>
+
+<!-- PARLEYS -->
+<div id="tab-parlay" class="hidden">
+  <div class="controls"><div class="inner">
+    <div class="ctl"><label class="cl" for="pnLegs">Legs</label>
+      <select id="pnLegs"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="10">10</option><option value="12">12</option></select></div>
+    <div class="ctl"><label class="cl">Estrategia</label>
+      <div class="seg" id="pStrat"><button data-s="seguro">Seguro</button><button class="on" data-s="valor">Valor</button><button data-s="agresivo">Agresivo</button></div></div>
+    <div class="ctl"><label class="cl" for="pMkt">Mercado</label>
+      <select id="pMkt"><option value="all">Todos</option><option value="h2h">1X2</option><option value="dc">Doble oportunidad</option><option value="scorer">Goleadores</option></select></div>
+    <div class="ctl"><label class="cl" for="pMd">Jornada</label>
+      <select id="pMd"><option value="0">Todas</option><option value="1">J1</option><option value="2">J2</option><option value="3">J3</option></select></div>
+    <div class="ctl"><label class="cl" for="pStake">Monto $</label><input type="number" id="pStake" value="100" min="10" step="10" style="width:90px"></div>
+    <button class="btn" id="pBuild">Armar parley</button>
+    <span class="pstat mono" id="pStat"></span>
+  </div></div>
+  <div class="wrap">
+    <section><div class="shead"><h2>Boleto propuesto</h2><span class="n" id="pMeta">—</span></div>
+      <p style="color:var(--mut);font-size:14px;max-width:840px"><b style="color:var(--txt)">Seguro</b> maximiza la probabilidad de cobrar (favoritos claros, retorno chico). <b style="color:var(--txt)">Valor</b> maximiza el valor esperado por leg sobre resultados plausibles (prob. ≥ 40%): el punto medio honesto. <b style="color:var(--txt)">Agresivo</b> busca el valor entre cuotas altas pero plausibles (mediana 2.5–8) — retornos grandes, probabilidad chica. Cada leg es editable: quítalo con la <b style="color:var(--txt)">x</b> o añade desde la tabla de valor. El filtro de <b style="color:var(--txt)">jornada</b> aplica al armador y a la tabla; cada clic en "Armar parley" propone una <b style="color:var(--txt)">variante nueva</b> (sin repetir partidos) hasta agotar la jornada, y reinicia.</p>
+      <div id="pTicketBox"><div class="empty">Elige legs y estrategia y pulsa "Armar parley".</div></div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="pSave" disabled>Guardar boleto</button></div>
+      <p class="note">"Valor" por leg = prob. del ensamble × cuota <b>mediana</b> entre casas (verde ≥100% = la cuota paga más de lo que el ensamble cree justo). Se juzga con la mediana a propósito: rankear por la mejor cuota persigue la línea atípica de una sola casa. La cuota combinada sí usa la <b>mejor casa por leg</b> (line shopping); un boleto real en una sola casa paga más cerca de la mediana. El producto asume partidos independientes (cierto en el motor). Y la advertencia honesta: el margen del corredor se compone leg a leg — a más legs, más paga el azar y menos tú; el EV es la mejor estimación del ensamble, no una promesa, y donde el modelo discrepa del mercado, el backtest dice que el mercado suele tener razón.</p></section>
+    <section><div class="shead"><h2>Mejor valor por leg</h2><p>Top 24 por valor del ensamble · clic en + para añadir al boleto</p></div>
+      <div class="tablewrap"><table id="pPool"><thead><tr>
+        <th class="team">Partido</th><th style="text-align:left">Pick</th><th>Mejor cuota</th><th>Mediana</th><th>Prob. ens.</th><th>Valor</th><th></th>
+      </tr></thead><tbody id="pPoolBody"></tbody></table></div>
+      <p class="note">El "valor" compara la cuota mediana entre casas contra la probabilidad del ensamble (peso en Ajustes). Ojo: los "valores" más altos aparecen justo donde el modelo discrepa del mercado (tapados como Qatar o Irak con el rating editable alto) — antes de perseguirlos, revisa la fuerza de ese equipo en Ajustes. Ventajas grandes y sistemáticas serían sospechosas, no un regalo.</p>
+      <p class="note"><b>Mercados.</b> <b>1X2</b>: cuotas reales por casa. <b>Doble oportunidad</b> (1X / 12 / X2): cuota sintética derivada del 1X2 por dutching (repartir el monto entre los dos resultados, o₁·o₂/(o₁+o₂)); la cuota DC real de una casa es muy parecida. <b>Goleadores</b> ("anota en el partido", penales sí, autogoles no): cuota real del mercado anytime scorer; la probabilidad del modelo es 1−exp(−λ·share), con el λ de goles del equipo y el share histórico de goles del jugador (martj42, vida media 2 años). Caveats de goleadores: asume que el jugador <b>juega</b> (revisa alineaciones), el lado mercado del ensamble descuenta un margen aproximado del 15%, y las casas cotizan pocos días antes de cada partido — corre <code>scripts/fetch_player_odds_2026.py</code> durante el torneo para cubrir cada jornada.</p></section>
+    <section><div class="shead"><h2>Mis boletos</h2><span class="n" id="pCount">0 boletos</span></div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <button class="btn ghost" id="pExport">Exportar JSON</button>
+        <label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Importar JSON<input type="file" id="pImport" accept=".json,application/json" style="display:none"></label>
+      </div>
+      <div id="pSummary" style="margin-bottom:14px"></div>
+      <div id="pTickets"><div class="empty">Sin boletos guardados.</div></div>
+      <p class="note">Los boletos viven en memoria de sesión: <b>exporta a JSON</b> para conservarlos y vuelve a importarlos después. Durante el torneo, corre <code>python3 scripts/fetch_scores_2026.py</code> (al menos cada 3 días) para bajar los marcadores finales: cada leg se marca acierto / fallo / pendiente y el boleto queda VIVO, GANADO o PERDIDO automáticamente.</p></section>
+  </div>
+</div>
+
+<!-- BANCA / RETO -->
+<div id="tab-bank" class="hidden">
+  <div class="controls"><div class="inner">
+    <div class="ctl"><label class="cl" for="lAmount">Monto inicial $</label><input type="number" id="lAmount" value="100" min="10" step="10" style="width:100px"></div>
+    <div class="ctl"><label class="cl" for="lSteps">Escalones</label>
+      <select id="lSteps"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6" selected>6</option><option value="7">7</option><option value="8">8</option><option value="10">10</option></select></div>
+    <div class="ctl"><label class="cl">Perfil</label>
+      <div class="seg" id="lProfile"><button data-p="conservador">Conservador</button><button class="on" data-p="medio">Medio</button><button data-p="agresivo">Agresivo</button></div></div>
+    <button class="btn" id="lBuild">Armar escalera</button>
+    <span class="pstat mono" id="lStat"></span>
+  </div></div>
+  <div class="wrap">
+    <section><div class="shead"><h2>Reto escalera</h2><span class="n" id="lMeta">—</span></div>
+      <p style="color:var(--mut);font-size:14px;max-width:860px">La banca completa va al escalón 1; si gana, <b style="color:var(--txt)">todo</b> al escalón 2, y así hasta el final. Fechas estrictamente crecientes (hay que cobrar antes del siguiente). Perfiles por cuota mediana del escalón: <b style="color:var(--txt)">conservador</b> 1.15–1.45, <b style="color:var(--txt)">medio</b> 1.40–1.90, <b style="color:var(--txt)">agresivo</b> 1.80–3.00; dentro de la banda se elige el mejor pick por valor (1X2 y doble oportunidad; goleadores no — toda la banca a una alineación no es aceptable). La fila marcada en <span style="color:var(--green)">verde</span> es la mejor parada por valor esperado: <b style="color:var(--txt)">parar también es estrategia</b>.</p>
+      <div id="lTicketBox"><div class="empty">Elige monto, escalones y perfil y pulsa "Armar escalera".</div></div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="lSave" disabled>Guardar reto</button></div>
+      <p class="note">La probabilidad de completar cae <b>multiplicativamente</b>: 6 escalones al 70% cada uno = 12%. "EV si paras" = prob. acumulada × banca de ese escalón − monto inicial; con picks de valor el EV sube unos escalones y luego la probabilidad lo aplasta. Cada escalón es una apuesta individual, así que la mejor cuota por casa sí aplica (line shopping). El reto se puntúa solo con los resultados (pestaña Parleys → scripts de marcadores).</p></section>
+    <section><div class="shead"><h2>Mis retos</h2><span class="n" id="lCount">0 retos</span></div>
+      <div id="lLadders"><div class="empty">Sin retos guardados.</div></div>
+      <p class="note">VIVO = esperando el siguiente escalón (muestra la banca acumulada). ROTO = un escalón falló y la banca quedó en 0 — esa es la naturaleza del reto, no un error del modelo. Los retos viajan en el mismo Exportar/Importar JSON de la pestaña Parleys.</p></section>
+    <section><div class="shead"><h2>Plan por valor (Kelly fraccionado)</h2><span class="n" id="kCount">0 planes</span></div>
+      <p style="color:var(--mut);font-size:14px;max-width:860px">La alternativa con fundamento a "todo a una": apuestas <b style="color:var(--txt)">individuales</b> sobre picks plausibles (prob. ≥ 40%) con edge ≥ 2% a cuota mediana, con stake por <b style="color:var(--txt)">criterio de Kelly</b> (f* = (p·o−1)/(o−1)) multiplicado por una fracción y con tope del 5% de la banca por pick. Máximo <b style="color:var(--txt)">una apuesta por selección</b>: si el edge nace de una sola creencia del modelo (p. ej. "Qatar está subvaluado"), apostarlo tres veces no diversifica — multiplica el mismo error. Kelly completo maximiza el crecimiento <i>si la probabilidad es correcta</i> — la nuestra es un ensamble, no la verdad, y sobre-apostar un edge ilusorio quiebra: por eso ¼ de Kelly por defecto.</p>
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <div class="ctl"><label class="cl" for="kBank">Banca $</label><input type="number" id="kBank" value="1000" min="50" step="50" style="width:100px"></div>
+        <div class="ctl"><label class="cl">Fracción de Kelly</label>
+          <div class="seg" id="kFrac"><button class="on" data-f="0.25">¼</button><button data-f="0.5">½</button><button data-f="1">Completo</button></div></div>
+        <div class="ctl"><label class="cl" for="kMax">Picks máx.</label>
+          <select id="kMax"><option value="4">4</option><option value="6">6</option><option value="8" selected>8</option><option value="12">12</option></select></div>
+        <button class="btn" id="kBuild">Generar plan</button>
+        <button class="btn" id="kSave" disabled>Guardar plan</button>
+      </div>
+      <div id="kPlanBox"><div class="empty">Elige banca y fracción de Kelly y pulsa "Generar plan".</div></div>
+      <div id="kPlans" style="margin-top:18px"><div class="empty">Sin planes guardados.</div></div>
+      <p class="note">El Monte Carlo (5,000 corridas) muestra la distribución honesta del P&L: aún con EV positivo, la probabilidad de acabar abajo en una sola tanda es alta — el Kelly gana en el largo plazo, no en una jornada. Recordatorio del backtest: el mercado le gana al modelo; los edges del ensamble son chicos y pueden ser ilusorios. No apuestes lo que no puedas perder.</p></section>
   </div>
 </div>
 
@@ -81,6 +164,33 @@
       <b>Alcance y límites de esta prueba.</b> La muestra es una sola fase de grupos (48 partidos) y, además, la de 2022 fue históricamente <b>atípica en sorpresas</b> (Arabia 2-1 Argentina, Japón sobre Alemania y España, Marruecos primero de grupo, Camerún sobre Brasil). Eso aplana el skill aparente de cualquier modelo basado en fuerza. Las eliminatorias se excluyen a propósito: la prórroga y los penales contaminan el marcador a 90 minutos que el motor predice. El arnés es el <b>marco</b>; para una conclusión robusta habría que correrlo sobre varios torneos. Lo importante no es el número absoluto sino el método: ahora cada cambio futuro al modelo se puede medir con un delta, no defender con intuición.
     </div>
   </section>
+  <section>
+    <div class="shead"><h2>Backtest multi-torneo</h2><span class="n">Elo vs Ataque/Defensa · banda</span></div>
+    <p style="color:var(--mut);font-size:14px;max-width:840px">Una sola fase de grupos es ruido. Aquí los dos motores se miden sobre las fases de grupos de <b style="color:var(--txt)">10 torneos</b> (Mundiales 2014/18/22, Euros 2016/20/24, Copas América 2016/19/21/24): el <b style="color:var(--txt)">Elo</b> (una fuerza por equipo) frente a <b style="color:var(--txt)">Ataque/Defensa</b> (multiplicadores separados de marcar y encajar, calibrados por máxima verosimilitud). Ambos con fuerzas <b style="color:var(--txt)">calculadas del histórico</b> y congeladas antes de cada torneo. Se reporta el RPS por torneo, el agrupado con <b style="color:var(--txt)">IC 90%</b> (bootstrap) y un <b style="color:var(--txt)">test pareado</b> de si Ataque/Defensa mejora.</p>
+    <div class="vtable"><table>
+      <thead><tr><th class="lab" style="text-align:left">Torneo</th><th>Partidos</th><th>RPS Elo ↓</th><th>RPS A/D ↓</th><th>Δ A/D ↓</th><th>Aciertos ↑</th></tr></thead>
+      <tbody id="btbody"></tbody>
+    </table></div>
+    <p class="note">"Δ A/D" = cambio relativo del RPS de Ataque/Defensa frente al Elo (verde = A/D mejor, rojo = peor). Fila resaltada = agrupado. "Aciertos" es del modelo Ataque/Defensa. Refleja ρ y localía actuales (Ajustes).</p>
+    <div class="vbox warn" id="btread"></div>
+    <div class="vbox" id="xgread"></div>
+    <div class="vbox">
+      <b>Procedencia y límites.</b> Datos del histórico <em>martj42 — International football results</em> (~49k partidos). El <b>Elo</b> lo calcula <code>scripts/build_backtest.py</code> (Elo World Football cronológico). El <b>Ataque/Defensa</b> lo calibra <code>scripts/build_attack_defense.py</code> por máxima verosimilitud (modelo de Maher: multiplicadores de ataque y defensa, tasa base, localía; con peso por importancia, decaimiento temporal y shrinkage). Ambos congelan un snapshot pre-torneo por edición. Solo fases de grupos. El <b>chequeo con xG</b> usa StatsBomb Open Data (<code>scripts/build_xg.py</code>), que solo cubre torneos. Nota clave: el RPS mide el resultado (1X2); la ventaja de Ataque/Defensa es sobre todo en MARCADORES, que es justo lo que importa para la quiniela y que esta métrica no captura del todo.
+    </div>
+  </section>
+  <section>
+    <div class="shead"><h2>Benchmark vs Mercado</h2><span class="n">cuotas de cierre 2022</span></div>
+    <p style="color:var(--mut);font-size:14px;max-width:780px">La prueba más exigente: convertir las <b style="color:var(--txt)">cuotas de cierre 1X2</b> de esos mismos 48 partidos en probabilidades implícitas (quitando el margen del corredor) y puntuarlas con las mismas métricas. El mercado de cierre incorpora todo —lesiones, alineaciones, dinero inteligente— y es el rival a vencer. Si el modelo no le gana, lo racional es apoyarse en las cuotas.</p>
+    <div class="vtable"><table>
+      <thead><tr><th class="lab" style="text-align:left">Pronóstico</th><th>RPS ↓</th><th>Brier ↓</th><th>LogLoss ↓</th><th>Aciertos ↑</th></tr></thead>
+      <tbody id="mktbbody"></tbody>
+    </table></div>
+    <p class="note">Mismos 48 partidos, mismas métricas que la tabla de arriba. La fila resaltada es el mejor RPS. El mercado de cierre suele ganar; empatarle ya es señal de un modelo decente.</p>
+    <div class="vbox warn" id="mktbread"></div>
+    <div class="vbox">
+      <b>Procedencia de las cuotas.</b> Las cuotas 1X2 de 2022 son por ahora <b>aproximadas</b> (consenso de mercado transcrito, sin verificar contra un feed: oddsportal usa JS y bloquea scraping, y no hay un CSV libre de este torneo). Bastan para mostrar el método y dar un orden de magnitud, pero <b>no para una conclusión firme</b>. Para datos verificados, corre <code>scripts/refresh_odds_2022.py</code> (The Odds API, endpoint histórico) y pega el bloque en <code>src/market.js</code>; pon <code>MARKET_2022_VERIFIED=true</code> y desaparece este aviso.
+    </div>
+  </section>
 </div></div>
 
 <!-- AJUSTES Y FUERZA -->
@@ -95,6 +205,16 @@
         <div class="rrow"><span>Activar</span><div class="seg" id="setDc"><button class="on" data-v="1">Sí</button><button data-v="0">No</button></div></div>
         <div class="rrow"><span>Correlación ρ</span><input type="number" id="setRho" value="-0.13" min="-0.3" max="0.1" step="0.01"></div>
         <p class="note" style="margin-top:8px">Corrige el exceso de empates de bajo marcador que el Poisson simple subestima. ρ negativo sube 0-0 y 1-1.</p></div>
+      <div class="gcard"><h3>Motor de goles</h3>
+        <div class="rrow"><span>Ataque / Defensa</span><div class="seg" id="setAd"><button data-v="1">Sí</button><button class="on" data-v="0">No</button></div></div>
+        <p class="note" style="margin-top:8px">Activa los ratings separados de ataque (cuánto marca) y defensa (cuánto encaja), calibrados por máxima verosimilitud del histórico, en vez del Elo único. Mejora sobre todo los marcadores de la quiniela. Vuelve a ejecutar el modelo y regenera la quiniela.</p></div>
+      <div class="gcard"><h3>Bandas de confianza</h3>
+        <div class="rrow"><span>Incertidumbre de fuerza (±Elo)</span><input type="number" id="setRsd" value="0" min="0" max="150" step="5"></div>
+        <p class="note" style="margin-top:8px">0 = sin bandas (más rápido). Con un valor (p. ej. 50) cada simulación sortea las fuerzas con ese ruido gaussiano y se reporta el intervalo 90% de la probabilidad de campeón, en las barras y en la tabla. Refleja que las fuerzas son estimaciones, no certezas. Vuelve a ejecutar el modelo.</p></div>
+      <div class="gcard"><h3>Ensamble con el mercado</h3>
+        <div class="rrow"><span>Peso del modelo</span><input type="number" id="setEnsW" value="0.5" min="0" max="1" step="0.05"></div>
+        <p class="note" style="margin-top:8px">Mezcla modelo + mercado: 0 = solo mercado, 1 = solo modelo. Define la columna "Ensamble" de la tabla Campeón y la fila Ensamble del benchmark. <span class="pstat mono" id="ensStat"></span></p>
+        <p class="note" style="margin-top:6px;color:var(--mut)">La calibración automática del peso queda pendiente: con cuotas de un solo torneo (2022) no es confiable. Por ahora es manual.</p></div>
     </div>
   </section>
   <section>
@@ -112,9 +232,22 @@
 
 <!-- Módulos en orden de dependencia: datos -> motor -> features -> UI -->
 <script src="src/data.js"></script>
+<script src="src/attack_defense.js"></script>
+<script src="src/odds_2026.js"></script>
+<script src="src/parlay_odds.js"></script>
+<script src="src/scorers_2026.js"></script>
+<script src="src/player_odds_2026.js"></script>
+<script src="src/results_2026.js"></script>
 <script src="src/engine.js"></script>
 <script src="src/quiniela.js"></script>
 <script src="src/validation.js"></script>
+<script src="src/market.js"></script>
+<script src="src/parlay.js"></script>
+<script src="src/bank.js"></script>
+<script src="src/backtest_data.js"></script>
+<script src="src/backtest_ad.js"></script>
+<script src="src/xg_data.js"></script>
+<script src="src/backtest.js"></script>
 <script src="src/ui.js"></script>
 </body>
 </html>

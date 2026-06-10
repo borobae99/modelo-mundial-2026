@@ -21,15 +21,21 @@ function gridProbs(a,b){const[la,lb]=lambdas(a,b);const M=jointGrid(la,lb,RHO);l
 function modalOf(M,outcome){let best=-1,bx=0,by=0;for(let x=0;x<=MAXG;x++)for(let y=0;y<=MAXG;y++){const ok=outcome==='W'?x>y:outcome==='D'?x===y:x<y;if(ok&&M[x][y]>best){best=M[x][y];bx=x;by=y;}}return[bx,by];}
 
 function resolveGroupMatch(g,i,a,b){
-  if(qMode==='random'){const[ga,gb]=sampleScore(a,b);return{a,b,ga,gb,win:ga>gb?a:(gb>ga?b:null),conf:null,forced:false};}
+  if(qMode==='random'){const[ga,gb]=sampleScore(a,b);return{a,b,ga,gb,win:ga>gb?a:(gb>ga?b:null),conf:null,forced:false,usedMkt:false};}
   const{M,pW,pD,pL}=gridProbs(a,b);
+  // Ensamble con el mercado 2026: si hay cuotas reales del partido y el peso del modelo < 1,
+  // mezcla las probabilidades del modelo con las del mercado (ENSEMBLE_W). El marcador sigue
+  // siendo el modal del modelo (el mercado solo da 1X2, no marcadores).
+  let bW=pW,bD=pD,bL=pL,usedMkt=false;
+  const mk=(typeof ODDS_2026_MATCHES!=='undefined')?ODDS_2026_MATCHES[[a,b].slice().sort().join('|')]:null;
+  if(mk&&ENSEMBLE_W<1){const w=ENSEMBLE_W,mW=mk[a]!=null?mk[a]:pW,mD=mk['draw']!=null?mk['draw']:pD,mL=mk[b]!=null?mk[b]:pL;bW=w*pW+(1-w)*mW;bD=w*pD+(1-w)*mD;bL=w*pL+(1-w)*mL;const s=bW+bD+bL||1;bW/=s;bD/=s;bL/=s;usedMkt=true;}
   const ov=overrides['g:'+g+':'+i];let outcome,forced=false;
   if(ov){forced=true;outcome=ov==='A'?'W':ov==='B'?'L':'D';}
-  else outcome=pW>=pD&&pW>=pL?'W':pD>=pL?'D':'L';
+  else outcome=bW>=bD&&bW>=bL?'W':bD>=bL?'D':'L';
   const[ga,gb]=modalOf(M,outcome);
   const win=outcome==='W'?a:outcome==='L'?b:null;
-  const conf=outcome==='W'?pW:outcome==='D'?pD:pL;
-  return{a,b,ga,gb,win,conf,forced};
+  const conf=outcome==='W'?bW:outcome==='D'?bD:bL;
+  return{a,b,ga,gb,win,conf,forced,usedMkt};
 }
 function resolveKO(round,idx,a,b){
   if(qMode==='random'){const[ga,gb]=sampleScore(a,b);let win;if(ga!==gb)win=ga>gb?a:b;else{let p=0.5+(effR(a,b)-effR(b,a))/2000;p=Math.min(0.65,Math.max(0.35,p));win=Math.random()<p?a:b;}return{a,b,ga,gb,win,pen:ga===gb,conf:null,forced:false};}
@@ -108,7 +114,8 @@ function renderQuiniela(){
   document.getElementById('qchamp').innerHTML=`<div class="champ-banner"><div class="lab">Campeón del Mundo 2026</div><div class="nm">${b.champ}</div><div class="sub">Grupo ${teamGroup[b.champ]} · final ${b.final.a} ${b.final.ga}–${b.final.gb} ${b.final.b}${b.final.pen?' (pen)':''}</div></div>`;
   document.getElementById('qchampSec').classList.remove('hidden');document.getElementById('qkoSec').classList.remove('hidden');
   const nOv=Object.keys(overrides).length;
-  document.getElementById('qstat').textContent=(qMode==='likely'?'ruta del favorito':'sorteo aleatorio')+(nOv?' · '+nOv+' pick'+(nOv>1?'s':'')+' tuyo'+(nOv>1?'s':''):'');
+  const ens=(qMode==='likely'&&typeof ODDS_2026_MATCHES!=='undefined'&&ENSEMBLE_W<1)?' · grupos: '+Math.round(ENSEMBLE_W*100)+'% modelo + mercado 2026':'';
+  document.getElementById('qstat').textContent=(qMode==='likely'?'ruta del favorito':'sorteo aleatorio')+ens+(nOv?' · '+nOv+' pick'+(nOv>1?'s':'')+' tuyo'+(nOv>1?'s':''):'');
 }
 let qGenerated=false;
 function genq(){qGenerated=true;renderQuiniela();}
