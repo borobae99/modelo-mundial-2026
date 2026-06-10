@@ -21,6 +21,12 @@ Preferencia explícita: **no usar emojis** en código ni en texto.
 No hay build. Abrir `index.html` en un navegador (o `python3 -m http.server` en la carpeta
 y visitar localhost). Los módulos se cargan como `<script src>` en orden de dependencia.
 
+**Publicado en GitHub Pages**: https://borobae99.github.io/modelo-mundial-2026/ (repo público
+`borobae99/modelo-mundial-2026`, rama main, raíz). Para actualizar lo que ven los amigos:
+correr los scripts de datos que toquen, `node scripts/smoke_test.js`, commit y `git push` —
+Pages se reconstruye solo en ~1 minuto. `env.txt` (API key) está ignorado por git: NUNCA
+commitearlo.
+
 Para probar la lógica sin navegador se usa Node: los módulos son JS plano (variables `const`
 en scope global), así que se pueden concatenar y evaluar. Ver "Pruebas" abajo.
 
